@@ -17,6 +17,7 @@ import { Rendimiento, tamanoSombras } from './rendimiento';
 import { anotarExpedicion, limpiarNombre } from './storage';
 import { panelConfiguracion } from './ui/configuracion';
 import { boton, h, mostrarPanel } from './ui/dom';
+import { ControlesPsp } from './ui/psp';
 
 const hud = document.getElementById('lienzo') as HTMLCanvasElement;
 const ctx = hud.getContext('2d')!;
@@ -24,7 +25,7 @@ const lienzo3d = document.createElement('canvas');
 lienzo3d.id = 'lienzo3d';
 hud.before(lienzo3d);
 const controles = document.getElementById('controles')!;
-// En táctil, el orden importa: la primera fila (abajo) son los botones grandes de combate.
+// Teclado y mando. En el mando, la misma disposición que la PSP: ✕ esquivar, ○ hacha, □ ligero, △ fuerte, L bloquear, R magia.
 const entrada = new Entrada(
   [
     { nombre: 'ligero', teclas: [], mando: 2, etiqueta: '⚔️' },
@@ -35,13 +36,19 @@ const entrada = new Entrada(
     { nombre: 'runa1', teclas: ['Digit1'], mando: 5, etiqueta: '❄️' },
     { nombre: 'runa2', teclas: ['Digit2'], mando: 6, etiqueta: '📯' },
     { nombre: 'furia', teclas: ['KeyF'], mando: 10, etiqueta: '😡' },
-    { nombre: 'fijar', teclas: ['Tab'], mando: 11, etiqueta: '🎯' },
+    { nombre: 'fijar', teclas: ['Tab'], mando: 8, etiqueta: '🎯' },
+    { nombre: 'pausa', teclas: [], mando: 9, etiqueta: '⏸' },
     { nombre: 'ejecutar', teclas: ['KeyR'], mando: 7, etiqueta: '💀' },
   ],
   controles,
 );
 const tactil = matchMedia('(pointer: coarse)').matches || (import.meta.env.DEV && location.search.includes('tactil'));
 if (tactil) document.body.classList.add('tactil');
+
+/* Mando PSP en pantalla (como PPSSPP): R + □ / △ / ○ lanza la magia, como en los juegos de acción de PSP. */
+const psp = new ControlesPsp(controles, {
+  cuadrado: 'Ligero', triangulo: 'Fuerte', cruz: 'Esquivar', circulo: 'Hacha · Rematar', L: 'Escudo', R: 'Magia', select: 'Fijar', start: 'Pausa',
+});
 
 let partida: Partida | null = null;
 let render: Render3D | null = null;
@@ -133,12 +140,13 @@ function jugando(si: boolean) {
   document.body.classList.toggle('jugando', si);
   if (!si) {
     entrada.limpiar();
+    psp.limpiar();
     if (document.pointerLockElement) document.exitPointerLock();
   } else if (!tactil) void lienzo3d.requestPointerLock?.();
 }
 
 const AYUDA = tactil
-  ? 'Joystick a la izquierda; arrastra a la derecha para la cámara. ⚔️ ligero, 💥 fuerte, 💨 esquivar, 🛡️ bloquear (justo a tiempo: bloqueo perfecto). 🪓 lanza y llama al hacha. 💀 remata a los aturdidos. Aviso amarillo: bloquea. Rojo: esquiva. Azul: bloqueo perfecto.'
+  ? 'Mando de PSP: stick o cruceta para moverte; arrastra en la pantalla para la cámara. □ ligero, △ fuerte, ✕ esquivar, ○ hacha (o rematar al aturdido). L: escudo (justo a tiempo: bloqueo perfecto). R + □: runa, R + △: grito, R + ○: furia. SELECT fija el objetivo y START pausa. Aviso amarillo: bloquea. Rojo: esquiva. Azul: bloqueo perfecto.'
   : 'WASD para moverte y ratón para la cámara. Clic izquierdo: ligero; derecho: fuerte. Espacio esquiva; Q o Mayús bloquea (justo a tiempo: bloqueo perfecto). E lanza y llama al hacha. 1 y 2: runas. F: furia. R: rematar. Tab fija el objetivo. Aviso amarillo: bloquea. Rojo: esquiva. Azul: bloqueo perfecto.';
 
 function bienvenida() {
@@ -587,7 +595,7 @@ function dibujarHud(p: Partida, dt: number) {
       if (e.estado === 'aturdido') {
         ctx.font = 'bold 12px system-ui, sans-serif';
         ctx.textAlign = 'center';
-        sombra(tactil ? '💀 Rematar' : '[R] Rematar', pt.x, pt.y - 12, '#fff');
+        sombra(tactil ? '○ Rematar' : '[R] Rematar', pt.x, pt.y - 12, '#fff');
       }
     }
     ctx.textAlign = 'center';
@@ -600,9 +608,10 @@ function dibujarHud(p: Partida, dt: number) {
   }
 
   // Vida, escudo y furia (arriba a la izquierda).
-  const bx = 14;
+  // En táctil, a la derecha del botón L.
+  const bx = tactil ? 112 : 14;
   const by = 14;
-  const bw = Math.min(260, ancho * 0.36);
+  const bw = tactil ? Math.min(190, ancho * 0.22) : Math.min(260, ancho * 0.36);
   barra(bx, by, bw, 18, j.vida / p.stats.vidaMax, j.vida > p.stats.vidaMax * 0.3 ? '#5ad13c' : '#ff5a5a');
   if (j.escudo > 0) barra(bx, by + 19, bw * Math.min(1, j.escudo / 60), 6, 1, '#5ab0ff', '#0000');
   ctx.font = 'bold 12px system-ui, sans-serif';
@@ -643,7 +652,7 @@ function dibujarHud(p: Partida, dt: number) {
   // Oro y Honor (arriba a la derecha, junto a la pausa).
   ctx.textAlign = 'right';
   ctx.font = 'bold 14px system-ui, sans-serif';
-  sombra(`💰 ${Math.floor(p.oro)}   🏅 ${Math.round(p.honor)}   ☠ ${p.bajas}`, ancho - 66, 26);
+  sombra(`💰 ${Math.floor(p.oro)}   🏅 ${Math.round(p.honor)}   ☠ ${p.bajas}`, tactil ? ancho - 112 : ancho - 66, 26);
 
   // Mensajes del centro.
   ctx.textAlign = 'center';
@@ -657,7 +666,7 @@ function dibujarHud(p: Partida, dt: number) {
   }
   if (p.arma === 'hacha' && h2.estado !== 'mano' && p.tiempo % 1 < 0.6) {
     ctx.font = '12px system-ui, sans-serif';
-    sombra(`Sin hacha: peleas a puñetazos (aturden mucho). ${tactil ? '🪓' : 'E'} la llama.`, cx, alto - (tactil ? 18 : 24), '#ddd');
+    sombra(`Sin hacha: peleas a puñetazos (aturden mucho). ${tactil ? '○' : 'E'} la llama.`, cx, alto - (tactil ? 18 : 24), '#ddd');
   }
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
@@ -670,6 +679,7 @@ let ultimo = performance.now();
 iniciarBucle(
   (dt) => rend.medir('logica', () => {
     entrada.actualizar();
+    psp.actualizar();
     const p = partida;
     if (!p) return;
     if (p.fase !== 'combate') {
@@ -691,23 +701,27 @@ iniciarBucle(
       giroX = giroY = 0;
       return;
     }
+    if (psp.pulsado('start') || entrada.pulsado('pausa')) return pausar();
     const c = controlesVacios();
-    c.x = entrada.x;
-    c.z = entrada.y;
+    c.x = entrada.x || psp.x;
+    c.z = entrada.y || psp.y;
     c.giroX = giroX;
     c.giroY = giroY;
     giroX = giroY = 0;
-    c.ligero = ligeroPendiente || entrada.pulsado('ligero');
-    c.fuerte = fuertePendiente || entrada.pulsado('fuerte');
+    // PSP: con R mantenido, □ △ ○ son la magia (runa, grito y furia); sin R, los ataques normales.
+    const r = psp.activo('R');
+    const rematar = psp.pulsado('circulo') && !r && !!p.ejecutable();
+    c.ligero = ligeroPendiente || entrada.pulsado('ligero') || (!r && psp.pulsado('cuadrado'));
+    c.fuerte = fuertePendiente || entrada.pulsado('fuerte') || (!r && psp.pulsado('triangulo'));
     ligeroPendiente = fuertePendiente = false;
-    c.esquivar = entrada.pulsado('esquivar');
-    c.bloquear = entrada.activo('bloquear');
-    c.especial = entrada.pulsado('especial');
-    c.runa1 = entrada.pulsado('runa1');
-    c.runa2 = entrada.pulsado('runa2');
-    c.furia = entrada.pulsado('furia');
-    c.ejecutar = entrada.pulsado('ejecutar');
-    c.fijar = entrada.pulsado('fijar');
+    c.esquivar = entrada.pulsado('esquivar') || psp.pulsado('cruz');
+    c.bloquear = entrada.activo('bloquear') || psp.activo('L');
+    c.especial = entrada.pulsado('especial') || (!r && !rematar && psp.pulsado('circulo'));
+    c.runa1 = entrada.pulsado('runa1') || (r && psp.pulsado('cuadrado'));
+    c.runa2 = entrada.pulsado('runa2') || (r && psp.pulsado('triangulo'));
+    c.furia = entrada.pulsado('furia') || (r && psp.pulsado('circulo'));
+    c.ejecutar = entrada.pulsado('ejecutar') || rematar;
+    c.fijar = entrada.pulsado('fijar') || psp.pulsado('select');
     p.autoFijar = app.g.config.objetivoAuto;
     p.ayudaEsquiva = app.g.config.ayudaEsquiva;
     p.actualizar(dt, c);

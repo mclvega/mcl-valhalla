@@ -10,7 +10,7 @@ Roguelike de acción en 3D para el navegador, con mitología nórdica. Cruzas lo
 - **Puertas** con recompensa: bendición, forja, fuente, Honor, prueba de élite o mercader. Modificadores de arena a partir del reino 3.
 - **El Salón**: mejoras permanentes con el Honor que ganas en cada expedición, aunque caigas.
 - Enemigos: draugr, escuderos, arqueros, lobos, berserkers, espectros, nigromantes y trolls. Jefes: Troll de piedra, Valquiria, Jarl draugr y Gran lobo.
-- Teclado y ratón, mando y controles táctiles. Funciona sin conexión (PWA) y el progreso queda en el navegador.
+- Teclado y ratón, mando y, en el móvil, un mando de PSP en pantalla como el de PPSSPP (cruceta, stick, △ ○ ✕ □, L, R, SELECT y START; R + □ / △ / ○ para la magia). Funciona sin conexión (PWA) y el progreso queda en el navegador.
 
 Publicado en https://mcl-valhalla.netlify.app
 
