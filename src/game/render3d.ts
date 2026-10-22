@@ -359,6 +359,12 @@ export class Render3D {
     }
     const contenedor = new THREE.Group();
     base.grupo.scale.multiplyScalar(esc);
+    // Lobos, trolls y espectros se modelan mirando a -z y los avatares a +z: se voltean para que
+    // todos miren hacia su yaw. Con orden YXZ, las inclinaciones en x siguen siendo las del modelo.
+    if (!base.cuerpo) {
+      base.grupo.rotation.order = 'YXZ';
+      base.grupo.rotation.y = Math.PI;
+    }
     contenedor.add(base.grupo);
     m = this.extras({ ...base, grupo: contenedor }, e.d.radio, 1.9 * e.d.escala);
     // El modelo interior es el que se anima; el contenedor lleva posición, anillo y estados.
